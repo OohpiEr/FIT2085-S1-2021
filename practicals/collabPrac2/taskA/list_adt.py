@@ -1,0 +1,311 @@
+"""
+Defines a generic abstract list with the usual methods, and implements
+a list using arrays and linked nodes. It also includes a linked list iterator.
+Also defines UnitTests for the class.
+"""
+
+__author__ = "Maria Garcia de la Banda, modified by Brendon Taylor, Graeme Gange, and Alexey Ignatiev"
+__docformat__ = 'reStructuredText'
+
+import unittest
+from abc import ABC, abstractmethod
+from enum import Enum
+from typing import Generic
+from referential_array import ArrayR, T
+
+
+class List(ABC, Generic[T]):
+    """ Abstract class for a generic List. """
+
+    def __init__(self) -> None:
+        """ Initialises the length of an exmpty list to be 0. """
+        self.length = 0
+
+    @abstractmethod
+    def __setitem__(self, index: int, item: T) -> None:
+        """ Sets the value of the element at position index to be item
+        :pre: index is 0 <= index < len(self)
+        """
+        pass
+
+    @abstractmethod
+    def __getitem__(self, index: int) -> T:
+        """ Returns the value of the element at position index
+        :pre: index is 0 <= index < len(self)
+        """
+        pass
+
+    def __len__(self) -> int:
+        """ Returns the length of the list
+        :complexity: O(1)
+        """
+        return self.length
+
+    @abstractmethod
+    def is_full(self) -> bool:
+        """ Returns True iff the list is full
+        """
+        pass
+
+    def is_empty(self) -> bool:
+        """ Returns True iff the list is empty
+        :complexity: O(1)
+        """
+        return len(self) == 0
+
+    def clear(self):
+        """ Sets the list back to empty
+        :complexity: O(1)
+        """
+        self.length = 0
+
+    @abstractmethod
+    def insert(self, index: int, item: T) -> None:
+        """ Moves self[j] to self[j+1] if j>=index, sets self[index]=item
+        :pre: index is 0 <= index <= len(self)
+        """
+        pass
+
+    def append(self, item: T) -> None:
+        """ Adds the item to the end of the list; the rest is unchanged.
+        :see: #insert(index: int, item: T)
+        """
+        self.insert(len(self), item)
+
+    @abstractmethod
+    def delete_at_index(self, index: int) -> T:
+        """Moved self[j+1] to self[j] if j>index & returns old self[index]
+        :pre: index is 0 <= index < len(self)
+        """
+        pass
+
+    @abstractmethod
+    def index(self, item: T) -> int:
+        """ Returns the position of the first occurrence of item
+        :raises ValueError: if item not in the list
+        """
+        pass
+
+    def remove(self, item: T) -> None:
+        """ Removes the first occurrence of the item from the list
+        :raises ValueError: if item not in the list
+        :see: #index(item: T) and #delete_at_index(index: int)
+        """
+        index = self.index(item)
+        self.delete_at_index(index)
+
+    def __str__(self) -> str:
+        """ Converts the list into a string, first to last
+        :complexity: O(len(self) * M), M is the size of biggest item
+        """
+        result = '['
+        for i in range(len(self)):
+            if i > 0:
+                result += ', '
+            result += str(self[i]) if type(self[i]) != str else "'{0}'".format(self[i])
+        result += ']'
+        return result
+
+
+class ArrayList(List[T]):
+    """ Implementation of a generic list with arrays.
+
+    Attributes:
+         length (int): number of elements in the list (inherited)
+         array (ArrayR[T]): array storing the elements of the list
+
+    ArrayR cannot create empty arrays. So MIN_CAPCITY used to avoid this.
+    """
+    MIN_CAPACITY = 40
+
+    def __init__(self, max_capacity : int = 40) -> None:
+        """ Initialises self.length by calling its parent and
+        self.array as an ArrayList of appropriate capacity
+        :complexity: O(len(self)) always due to the ArrarR call
+        """
+        List.__init__(self)
+        self.array = ArrayR(max(self.MIN_CAPACITY, max_capacity))
+
+    def __getitem__(self, index: int) -> T:
+        """ Returns the value of the element at position index
+        :pre: index is 0 <= index < len(self) checked by ArrayR's method
+        :complexity: O(1)
+        """
+        if index < 0 or len(self) <= index:
+            raise IndexError("Out of bounds access in array.")
+        return self.array[index]
+
+    def __setitem__(self, index: int, value: T) -> None:
+        """ Sets the value of the element at position index to be item
+        :pre: index is 0 <= index < len(self) checked by ArrayR's method
+        :complexity: O(1)
+        """
+        if index < 0 or len(self) <= index:
+            raise IndexError("Out of bounds access in array.")
+        self.array[index] = value
+
+    def __shuffle_right(self, index: int) -> None:
+        """ Shuffles all the items to the right from index
+        :complexity best: O(1) shuffle from the end of the list
+        :complexity worst: O(N) shuffle from the start of the list
+        where N is the number of items in the list
+        """
+        for i in range(len(self), index, -1):
+            self.array[i] = self.array[i - 1]
+
+    def __shuffle_left(self, index: int) -> None:
+        """ Shuffles all the items to the left from index
+        :complexity best: O(1) shuffle from the start of the list
+        :complexity worst: O(N) shuffle from the end of the list
+        where N is the number of items in the list
+        """
+        for i in range(index, len(self)):
+            self.array[i] = self.array[i+1]
+
+    def __resize(self) -> None:
+      """
+      If the list is full, doubles the internal capacity of the list,
+      copying all existing elements. Does nothing if the list is not full.
+
+      :post:       Capacity is strictly greater than the list length.
+      :complexity: Worst case O(N), for list of length N.
+      """
+      if len(self) == len(self.array):
+        new_cap = int(1.9 * len(self.array))
+        new_array = ArrayR(new_cap)
+        for i in range(len(self)):
+          new_array[i] = self.array[i]
+        self.array = new_array
+      assert len(self) < len(self.array), "Capacity not greater than length after __resize."
+
+    def is_full(self):
+        """ Returns true if the list is full
+        :complexity: O(1)
+        """
+        return len(self) >= len(self.array)
+
+    def index(self, item: T) -> int:
+        """ Returns the position of the first occurrence of item
+        :raises ValueError: if item not in the list
+        :complexity: O(Comp==) if item is first; Comp== is the BigO of ==
+                     O(len(self)*Comp==) if item is last
+        """
+        for i in range(len(self)):
+            if item == self[i]:
+                return i
+        raise ValueError("Item not in list")
+
+    def delete_at_index(self, index: int) -> T:
+        """ Moves self[j+1] to self[j] if j>index, returns old self[index]
+        :pre: index is 0 <= index < len(self) checked by self.array[_]
+        :complexity: O(len(self) - index)
+        """
+        if index < 0 or index > len(self):
+            raise IndexError("Out of bounds")
+        item = self.array[index]
+        self.length -= 1
+        self.__shuffle_left(index)
+        return item
+
+    def insert(self, index: int, item: T) -> None:
+        """ Moves self[j] to self[j+1] if j>=index & sets self[index]=item
+        :pre: index is 0 <= index <= len(self) checked by self.array[_]
+        :complexity: O(len(self)-index) if no resizing needed, O(len(self)) otherwise
+        """
+        if self.is_full():
+            self.__resize()
+        self.__shuffle_right(index)
+        self.array[index] = item
+        self.length += 1
+
+
+class TestList(unittest.TestCase):
+    """ Tests for the above class."""
+    EMPTY = 0
+    ROOMY = 5
+    LARGE = 10
+
+    def setUp(self):
+        self.lengths = [self.EMPTY, self.ROOMY, self.LARGE, self.ROOMY, self.LARGE]
+        self.lists = [ArrayList(self.LARGE) for i in range(len(self.lengths))]
+
+        for list, length in zip(self.lists, self.lengths):
+            for i in range(length):
+                list.append(i)
+        self.empty_list = self.lists[0]
+        self.roomy_list = self.lists[1]
+        self.large_list = self.lists[2]
+        #we build empty lists from clear.
+        #this is an indirect way of testing if clear works!
+        #(perhaps not the best)
+        self.clear_list = self.lists[3]
+        self.clear_list.clear()
+        self.lengths[3] = 0
+        self.lists[4].clear()
+        self.lengths[4] = 0
+
+    def tearDown(self):
+        for s in self.lists:
+            s.clear()
+
+    def test_init(self) -> None:
+        self.assertTrue(self.empty_list.is_empty())
+        self.assertEqual(len(self.empty_list), 0)
+
+    def test_len(self):
+        """ Tests the length of all lists created during setup."""
+        for list, length in zip(self.lists, self.lengths):
+            self.assertEqual(len(list), length)
+
+    def test_is_empty_add(self):
+        """ Tests lists that have been created empty/non-empty."""
+        self.assertTrue(self.empty_list.is_empty())
+        self.assertFalse(self.roomy_list.is_empty())
+        self.assertFalse(self.large_list.is_empty())
+
+    def test_is_empty_clear(self):
+        """ Tests lists that have been cleared."""
+        for list in self.lists:
+            list.clear()
+            self.assertTrue(list.is_empty())
+
+    def test_is_empty_delete_at_index(self):
+        """ Tests lists that have been created and then deleted completely."""
+        for list in self.lists:
+            #we empty the list
+            for i in range(len(list)):
+                self.assertEqual(list.delete_at_index(0), i)
+            try:
+                list.delete_at_index(-1)
+            except:
+                self.assertTrue(list.is_empty())
+
+    def test_append_and_remove_item(self):
+        for list in self.lists:
+            nitems = self.ROOMY
+            list.clear()
+            for i in range(nitems):
+                list.append(i)
+            for i in range(nitems-1):
+                list.remove(i)
+                self.assertEqual(list[0],i+1)
+            list.remove(nitems-1)
+            self.assertTrue(list.is_empty())
+            for i in range(nitems):
+                list.append(i)
+            for i in range(nitems-1,0,-1):
+                list.remove(i)
+                self.assertEqual(list[len(list)-1],i-1)
+            list.remove(0)
+            self.assertTrue(list.is_empty())
+
+    def test_clear(self):
+        for list in self.lists:
+            list.clear()
+            self.assertTrue(list.is_empty())
+
+
+if __name__ == '__main__':
+    testtorun = TestList()
+    suite = unittest.TestLoader().loadTestsFromModule(testtorun)
+    unittest.TextTestRunner().run(suite)
