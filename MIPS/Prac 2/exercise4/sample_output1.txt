@@ -1,0 +1,4 @@
+Please enter integer n: 1
+Please enter integer m: 2
+The almost pythagorean triple is 3 4 5
+-- program is finished running --

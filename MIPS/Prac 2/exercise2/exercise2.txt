@@ -1,0 +1,14 @@
+What is the initial value of Register PC?
+    initial value of PC: 0x00400000
+
+What is the content of PC referring to?
+    It contains the address of the instruction currently being executed.
+
+Is there a pattern in the addresses that correspond to each instruction?
+    Yes,  it increments by 4 bits for every address.
+
+Has every MIPS instruction been assembled into a single machine code instruction? 
+    yes
+
+What is in the data segment?
+    The string in prompt is stored in there.

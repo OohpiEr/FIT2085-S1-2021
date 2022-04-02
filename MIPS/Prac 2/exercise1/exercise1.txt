@@ -1,0 +1,25 @@
+Line number of every MIPS instruction and the purpose of the instruction.
+    line 6: String of "I am really enjoying MIPS\n" stored in variable prompt
+    line 10: loaded address of variable prompt to $a0
+    line 11: entered the system call code (4) for printing string to $v0
+    line 12: system call
+    line 15: entered the system call code (10) for exiting the program to $v0 
+    line 16: system call
+
+The name of any label.
+    main:
+
+Line number of any assembly directive and the purpose of the directive.
+    .data        
+    .text
+
+Name of any global variable.
+    prompt
+
+Name of any general purpose register used. 
+    $a0, $v0, $0
+
+
+
+
+

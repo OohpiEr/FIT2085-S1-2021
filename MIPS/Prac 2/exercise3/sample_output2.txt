@@ -1,0 +1,6 @@
+Please enter the first integer: 5
+Please enter the second integer: 3
+The quotient is 1
+The remainder is 2
+-- program is finished running --
+
